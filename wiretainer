@@ -14,11 +14,11 @@ up() {
         ip addr add 10.200.200.1/24 dev vpndest0
         ip netns exec vpn ip addr add 10.200.200.2/24 dev vpnsource0
         ip netns exec vpn ip route add default via 10.200.200.1 dev vpnsource0
-        iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o e+ -j MASQUERADE
+        iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
         mkdir -p /etc/netns/vpn
         sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/vpn/resolv.conf"
         ip netns exec vpn wg-quick up $1
-        ufw route allow in on vpndest0 out on enp5s0
+        ufw route allow in on vpndest0 out on $interface
         ufw reload
     else
         echo "Enter wireguard config name"
@@ -27,8 +27,8 @@ up() {
 
 down() {
     if [ -n "$1" ]; then
-        ufw route delete allow in on vpndest0 out on enp5s0
-        iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o e+ -j MASQUERADE
+        ufw route delete allow in on vpndest0 out on $interface
+        iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
         ip netns exec vpn wg-quick down $1
         rm -r /etc/netns/vpn
         ip link delete vpndest0
@@ -45,6 +45,17 @@ execi() {
 
 command="$1"
 shift
+
+interface="enp5s0"
+
+while getopts "i:" flag; do
+  case $flag in
+    i)
+        interface=$2
+        shift 2
+        ;;
+  esac
+done
 
 case "$command" in
     up) up "$@" ;;
