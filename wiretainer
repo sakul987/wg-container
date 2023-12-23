@@ -1,0 +1,54 @@
+#!/bin/bash
+set -ex
+
+[[ $UID != 0 ]] && exec sudo -E "$(readlink -f "$0")" "$@"
+
+up() {
+    if [ -n "$1" ]; then
+        ip netns add vpn
+        ip netns exec vpn ip addr add 127.0.0.1/8 dev lo
+        ip netns exec vpn ip link set lo up
+        ip link add vpndest0 type veth peer name vpnsource0
+        ip link set vpndest0 up
+        ip link set vpnsource0 netns vpn up
+        ip addr add 10.200.200.1/24 dev vpndest0
+        ip netns exec vpn ip addr add 10.200.200.2/24 dev vpnsource0
+        ip netns exec vpn ip route add default via 10.200.200.1 dev vpnsource0
+        iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o e+ -j MASQUERADE
+        mkdir -p /etc/netns/vpn
+        sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/vpn/resolv.conf"
+        ip netns exec vpn wg-quick up $1
+        ufw route allow in on vpndest0 out on enp5s0
+        ufw reload
+    else
+        echo "Enter wireguard config name"
+    fi
+}
+
+down() {
+    if [ -n "$1" ]; then
+        ufw route delete allow in on vpndest0 out on enp5s0
+        iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o e+ -j MASQUERADE
+        ip netns exec vpn wg-quick down $1
+        rm -r /etc/netns/vpn
+        ip link delete vpndest0
+        ip netns delete vpn
+        ufw reload
+    else
+        echo "Enter wireguard config name"
+    fi
+}
+
+execi() {
+    exec ip netns exec vpn sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@"
+}
+
+command="$1"
+shift
+
+case "$command" in
+    up) up "$@" ;;
+    down) down "$@" ;;
+    exec) execi "$@" ;;
+    *) echo "Usage: $0 up|down|exec" >&2; exit 1 ;;
+esac
