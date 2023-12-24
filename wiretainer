@@ -48,7 +48,7 @@ shift
 
 interface="enp5s0"
 
-while getopts "i:v" flag; do
+while getopts "i:vh" flag; do
   case $flag in
     i)
         interface=$2
@@ -56,7 +56,10 @@ while getopts "i:v" flag; do
         ;;
     v)
         set -x
-        shift
+        ;;
+    h)
+        echo "TODO"
+        exit 0
         ;;
   esac
 done
