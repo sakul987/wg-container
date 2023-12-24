@@ -40,7 +40,21 @@ down() {
 }
 
 execi() {
-    exec ip netns exec vpn sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@"
+    exec ip netns exec vpn sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@" &
+    wait $!
+}
+
+direct() {
+    server="$1"
+    shift
+
+    up "$server"
+
+    set +e
+    execi "$@"
+
+    set -e
+    down "$server"
 }
 
 command="$1"
@@ -65,5 +79,6 @@ case "$command" in
     up) up "$@" ;;
     down) down "$@" ;;
     exec) execi "$@" ;;
-    *) echo "Usage: $0 up|down|exec" >&2; exit 1 ;;
+    direct) direct "$@" ;;
+    *) echo "Usage: $0 up|down|exec|direct" >&2; exit 1 ;;
 esac
