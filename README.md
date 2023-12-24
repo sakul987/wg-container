@@ -30,7 +30,7 @@ To create a VPN namespace, run the application inside and afterwards clean up ag
 To create a VPN namespace using interface "eth0", run the application inside and afterwards clean up again run ```/path/to/wiretainer direct -i eth0 wg-us-01 firefox```
 
 # Flags
--i <INTERFACE> to set the interface to be used.
+-i INTERFACE to set the interface to be used.
 
 -v To set -x / enable more debug info.
 
