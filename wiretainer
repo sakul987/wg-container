@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 [[ $UID != 0 ]] && exec sudo -E "$(readlink -f "$0")" "$@"
 
@@ -48,11 +48,15 @@ shift
 
 interface="enp5s0"
 
-while getopts "i:" flag; do
+while getopts "i:v" flag; do
   case $flag in
     i)
         interface=$2
         shift 2
+        ;;
+    v)
+        set -x
+        shift
         ;;
   esac
 done
