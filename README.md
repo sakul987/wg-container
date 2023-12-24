@@ -25,9 +25,9 @@ To remove the VPN namespace & connection using interface "eth0" run ```/path/to/
 To run a application (e.g. firefox) in the VPN namespace run ```/path/to/wiretainer exec firefox```
 
 # New usage: All in one line
-To create a VPN namespace, run the application inside and afterwars clean up again run ```/path/to/wiretainer direct wg-us-01 firefox```
+To create a VPN namespace, run the application inside and afterwards clean up again run ```/path/to/wiretainer direct wg-us-01 firefox```
 
-To create a VPN namespace using interface "eth0", run the application inside and afterwars clean up again run ```/path/to/wiretainer direct -i eth0 wg-us-01 firefox```
+To create a VPN namespace using interface "eth0", run the application inside and afterwards clean up again run ```/path/to/wiretainer direct -i eth0 wg-us-01 firefox```
 
 # Flags
 -i <INTERFACE> to set the interface to be used.
