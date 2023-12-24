@@ -50,19 +50,16 @@ interface="enp5s0"
 
 while getopts "i:vh" flag; do
   case $flag in
-    i)
-        interface=$2
-        shift 2
-        ;;
-    v)
-        set -x
-        ;;
+    i)  interface=$OPTARG ;;
+    v)  set -x ;;
     h)
         echo "TODO"
         exit 0
         ;;
   esac
 done
+
+shift $((OPTIND-1))
 
 case "$command" in
     up) up "$@" ;;
