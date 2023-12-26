@@ -57,6 +57,20 @@ direct() {
     down "$server"
 }
 
+showhelp() {
+    echo "Commands:"
+    echo "  wg-container up <flags> <configName>                 # Start VPN connection to <configName>"
+    echo "  wg-container exec <flags> <command>                  # Execute <command> in the VPN namespace"
+    echo "  wg-container down <flags> <configName>               # Stop VPN connection to <configName>"
+    echo "  wg-container direct <flags> <configName> <command>   # Run <command> in <configName> without starting or stopping it"
+    echo "  wg-container help                                    # Print this help text"
+    echo "Flags:"
+    echo "  -i <interface>  # Set the used network interface. Default is \"enp5s0\""
+    echo "  -v              # Enable verbose mode / get more debug info"
+    echo "  -h              # Print this help text"
+    exit 0
+}
+
 command="$1"
 shift
 
@@ -66,10 +80,7 @@ while getopts "i:vh" flag; do
   case $flag in
     i)  interface=$OPTARG ;;
     v)  set -x ;;
-    h)
-        echo "TODO"
-        exit 0
-        ;;
+    h)  showhelp ;;
   esac
 done
 
@@ -80,5 +91,6 @@ case "$command" in
     down) down "$@" ;;
     exec) execi "$@" ;;
     direct) direct "$@" ;;
+    help)   showhelp ;;
     *) echo "Usage: $0 up|down|exec|direct" >&2; exit 1 ;;
 esac
