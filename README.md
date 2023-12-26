@@ -11,6 +11,8 @@ Also this currently only supports one VPN/namespace, I might add the possibility
 
 The script uses wgquick up & down to connect to the VPN, make sure you have wireguard-tools installed.
 
+Display the help menu by running ```/path/to/wg-container help```
+
 # Usage: Start
 To create a VPN namespace with the config file /etc/wireguard/wg-us-01.conf run ```/path/to/wg-container up wg-us-01```
 
@@ -35,4 +37,5 @@ To create a VPN namespace using interface "eth0", run the application inside and
 -v To set -x / enable more debug info.
 
 -h To get a help overview.
+
 
