@@ -6,6 +6,8 @@ set -e
 up() {
     if [ -n "$1" ]; then
         server="$1"
+        modeAddition="$2"
+
         ip netns add vpn
         ip netns exec vpn ip addr add 127.0.0.1/8 dev lo
         ip netns exec vpn ip link set lo up
@@ -29,6 +31,8 @@ up() {
 down() {
     if [ -n "$1" ]; then
         server="$1"
+        modeAddition="$2"
+
         ufw route delete allow in on vpndest0 out on $interface
         iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
         ip netns exec vpn wg-quick down $server
@@ -50,13 +54,13 @@ direct() {
     server="$1"
     shift
 
-    up "$server"
+    up "$server" "direct"
 
     set +e
     execi "$@"
 
     set -e
-    down "$server"
+    down "$server" "direct"
 }
 
 showhelp() {
