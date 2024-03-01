@@ -5,6 +5,7 @@ set -e
 
 up() {
     if [ -n "$1" ]; then
+        server="$1"
         ip netns add vpn
         ip netns exec vpn ip addr add 127.0.0.1/8 dev lo
         ip netns exec vpn ip link set lo up
@@ -17,7 +18,7 @@ up() {
         iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
         mkdir -p /etc/netns/vpn
         sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/vpn/resolv.conf"
-        ip netns exec vpn wg-quick up $1
+        ip netns exec vpn wg-quick up $server
         ufw route allow in on vpndest0 out on $interface
         ufw reload
     else
@@ -27,9 +28,10 @@ up() {
 
 down() {
     if [ -n "$1" ]; then
+        server="$1"
         ufw route delete allow in on vpndest0 out on $interface
         iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
-        ip netns exec vpn wg-quick down $1
+        ip netns exec vpn wg-quick down $server
         rm -r /etc/netns/vpn
         ip link delete vpndest0
         ip netns delete vpn
