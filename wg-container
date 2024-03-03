@@ -7,7 +7,6 @@ up() {
     if [ -n "$1" ]; then
         server="$1"
         if [[ $isMulti == true ]]; then
-            #TODO - readme - max 14 char server name (netns max 15 byte)
             netnsName=$server
         else
             netnsName="vpn"
@@ -56,7 +55,14 @@ down() {
 }
 
 execi() {
-    exec ip netns exec vpn sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@" &
+    if [[ $isMulti == true ]]; then
+        netnsName="$1"
+        shift
+    else
+        netnsName="vpn"
+    fi
+
+    exec ip netns exec $netnsName sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@" &
     wait $!
 }
 
