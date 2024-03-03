@@ -44,6 +44,9 @@ Example:
 
 ```/path/to/wg-container exec -m wg-us-01 firefox```
 
+# List
+It is possible to print out the active VPN connections by running ```/path/to/wg-container list```
+
 # Flags
 -i INTERFACE to set the interface to be used.
 
