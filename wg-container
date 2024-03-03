@@ -7,28 +7,27 @@ up() {
     if [ -n "$1" ]; then
         server="$1"
         if [[ $isMulti == true ]]; then
-            if [ -n "$2" ]; then
-                modeAddition="_$2"
-            fi
-            netnsName="vpn_${server}${modeAddition}"
+            #TODO - readme - max 14 char server name (netns max 15 byte)
+            netnsName=$server
         else
             netnsName="vpn"
         fi
 
-        ip netns add vpn
-        ip netns exec vpn ip addr add 127.0.0.1/8 dev lo
-        ip netns exec vpn ip link set lo up
-        ip link add vpndest0 type veth peer name vpnsource0
-        ip link set vpndest0 up
-        ip link set vpnsource0 netns vpn up
-        ip addr add 10.200.200.1/24 dev vpndest0
-        ip netns exec vpn ip addr add 10.200.200.2/24 dev vpnsource0
-        ip netns exec vpn ip route add default via 10.200.200.1 dev vpnsource0
+        ip netns add $netnsName
+        ip netns exec $netnsName ip addr add 127.0.0.1/8 dev lo
+        ip netns exec $netnsName ip link set lo up
+        ip link add "${netnsName}d" type veth peer name "${netnsName}s"
+        ip link set "${netnsName}d" up
+        ip link set "${netnsName}s" netns $netnsName up
+        #TODO - ip addr
+        ip addr add 10.200.200.1/24 dev "${netnsName}d"
+        ip netns exec $netnsName ip addr add 10.200.200.2/24 dev "${netnsName}s"
+        ip netns exec $netnsName ip route add default via 10.200.200.1 dev "${netnsName}s"
         iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
-        mkdir -p /etc/netns/vpn
-        sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/vpn/resolv.conf"
-        ip netns exec vpn wg-quick up $server
-        ufw route allow in on vpndest0 out on $interface
+        mkdir -p "/etc/netns/$netnsName"
+        sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/$netnsName/resolv.conf"
+        ip netns exec $netnsName wg-quick up $server
+        ufw route allow in on "${netnsName}d" out on $interface
         ufw reload
     else
         echo "Enter wireguard config name"
@@ -39,20 +38,17 @@ down() {
     if [ -n "$1" ]; then
         server="$1"
         if [[ $isMulti == true ]]; then
-            if [ -n "$2" ]; then
-                modeAddition="_$2"
-            fi
-            netnsName="vpn_${server}${modeAddition}"
+            netnsName=$server
         else
             netnsName="vpn"
         fi
 
-        ufw route delete allow in on vpndest0 out on $interface
+        ufw route delete allow in on "${netnsName}d" out on $interface
         iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
-        ip netns exec vpn wg-quick down $server
-        rm -r /etc/netns/vpn
-        ip link delete vpndest0
-        ip netns delete vpn
+        ip netns exec $netnsName wg-quick down $server
+        rm -r "/etc/netns/$netnsName"
+        ip link delete "${netnsName}d"
+        ip netns delete $netnsName
         ufw reload
     else
         echo "Enter wireguard config name"
@@ -70,13 +66,13 @@ direct() {
     server="$1"
     shift
 
-    up "$server" "direct"
+    up "$server"
 
     set +e
     execi "$@"
 
     set -e
-    down "$server" "direct"
+    down "$server"
 }
 
 showhelp() {
