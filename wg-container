@@ -102,7 +102,7 @@ direct() {
     up "$server"
 
     set +e
-    execi "$@"
+    execi "$server" "$@"
 
     set -e
     down "$server"
