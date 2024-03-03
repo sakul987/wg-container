@@ -167,5 +167,5 @@ case "$command" in
     direct) direct "$@" ;;
     list) showlist ;;
     help)   showhelp ;;
-    *) echo "Usage: $0 up|down|exec|direct" >&2; exit 1 ;;
+    *) echo "Usage: $0 up|down|exec|direct|list|help" >&2; exit 1 ;;
 esac
