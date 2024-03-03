@@ -19,9 +19,11 @@ To create a VPN namespace with the config file /etc/wireguard/wg-us-01.conf run 
 To create a VPN namespace using interface "eth0" with the config file /etc/wireguard/wg-us-01.conf run ```/path/to/wg-container up -i eth0 wg-us-01```
 
 # Usage: Stop
-To remove the VPN namespace & connection run ```/path/to/wg-container down wg-us-01```
+To remove the VPN namespace & connection run ```/path/to/wg-container down```
 
-To remove the VPN namespace & connection using interface "eth0" run ```/path/to/wg-container down -i eth0 wg-us-01```
+To remove the VPN namespace & connection using interface "eth0" run ```/path/to/wg-container down -i eth0```
+
+When the VPN was started in multimode, run ```/path/to/wg-container down -m wg-us-01```
 
 # Usage: Run Application
 To run a application (e.g. firefox) in the VPN namespace run ```/path/to/wg-container exec firefox```
