@@ -131,6 +131,7 @@ showhelp() {
     echo "  -i <interface>  # Set the used network interface. Default is \"enp5s0\""
     echo "  -v              # Enable verbose mode / get more debug info"
     echo "  -h              # Print this help text"
+    echo "  -m              # Use multi mode"
     exit 0
 }
 
