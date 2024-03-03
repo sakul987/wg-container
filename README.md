@@ -34,6 +34,8 @@ To create a VPN namespace using interface "eth0", run the application inside and
 # Multi mode
 If you want to have multiple vpn connections open at the same time, use multi mode by setting the -m flag. When you start a connection with up and set the -m flag, you can execute a command in this connection by using -m <servername>. If you created a "normal" connection without -m, you can also just execute a command without specifying the server like before.
 
+Important: the server name should not be longer than 13(?) chars, otherwise you will get an error.
+
 Example:
 
 ```/path/to/wg-container up -m wg-us-01 firefox```
