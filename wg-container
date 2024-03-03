@@ -107,7 +107,6 @@ execi() {
 
 direct() {
     isMulti=true;
-
     server="$1"
     shift
 
@@ -147,7 +146,7 @@ shift
 
 interface="enp5s0"
 vpnIpPairLocation="/var/lib/wg-container"
-# Structur of vpnIpPairFile: <netnsName> <server> <ip>
+# Structure of vpnIpPairFile: <netnsName> <server> <ip>
 vpnIpPairFile="/var/lib/wg-container/vpnIpPairs"
 
 while getopts "i:vhm" flag; do
