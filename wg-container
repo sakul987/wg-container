@@ -3,6 +3,27 @@ set -e
 
 [[ $UID != 0 ]] && exec sudo -E "$(readlink -f "$0")" "$@"
 
+freeIp() {
+    for i in $(seq 0 255); do
+        if ! grep -q "10.200.$i.0" $vpnIpPairFile; then
+            echo $i
+            return
+        fi
+    done
+    echo "no free ip found!" >&2
+    exit 1
+}
+
+usedIp() {
+    ip=$(grep -m 1 $1 $vpnIpPairFile | awk '{print $2}')
+    if [ -n "$ip" ]; then
+        echo $ip
+    else
+        echo "ip not found for $1"
+        exit 2
+    fi
+}
+
 up() {
     if [ -n "$1" ]; then
         server="$1"
@@ -11,6 +32,9 @@ up() {
         else
             netnsName="vpn"
         fi
+        mkdir -p $vpnIpPairLocation
+        touch $vpnIpPairFile
+        netnsIp=$(freeIp)
 
         ip netns add $netnsName
         ip netns exec $netnsName ip addr add 127.0.0.1/8 dev lo
@@ -18,14 +42,14 @@ up() {
         ip link add "${netnsName}d" type veth peer name "${netnsName}s"
         ip link set "${netnsName}d" up
         ip link set "${netnsName}s" netns $netnsName up
-        #TODO - ip addr
-        ip addr add 10.200.200.1/24 dev "${netnsName}d"
-        ip netns exec $netnsName ip addr add 10.200.200.2/24 dev "${netnsName}s"
-        ip netns exec $netnsName ip route add default via 10.200.200.1 dev "${netnsName}s"
-        iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
+        ip addr add "10.200.$netnsIp.1/24" dev "${netnsName}d"
+        ip netns exec $netnsName ip addr add "10.200.$netnsIp.2/24" dev "${netnsName}s"
+        ip netns exec $netnsName ip route add default via "10.200.$netnsIp.1" dev "${netnsName}s"
+        iptables -t nat -A POSTROUTING -s "10.200.$netnsIp.0/24" -o $interface -j MASQUERADE
         mkdir -p "/etc/netns/$netnsName"
         sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/$netnsName/resolv.conf"
         ip netns exec $netnsName wg-quick up $server
+        echo "$netnsName 10.200.$netnsIp.0" >> $vpnIpPairFile
         ufw route allow in on "${netnsName}d" out on $interface
         ufw reload
     else
@@ -41,9 +65,10 @@ down() {
         else
             netnsName="vpn"
         fi
+        netnsIp=$(usedIp $netnsName)
 
         ufw route delete allow in on "${netnsName}d" out on $interface
-        iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
+        iptables -t nat -D POSTROUTING -s "$netnsIp/24" -o $interface -j MASQUERADE
         ip netns exec $netnsName wg-quick down $server
         rm -r "/etc/netns/$netnsName"
         ip link delete "${netnsName}d"
@@ -99,6 +124,8 @@ command="$1"
 shift
 
 interface="enp5s0"
+vpnIpPairLocation="/var/lib/wg-container"
+vpnIpPairFile="/var/lib/wg-container/vpnIpPairs"
 
 while getopts "i:vhm" flag; do
   case $flag in
