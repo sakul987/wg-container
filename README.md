@@ -40,7 +40,7 @@ Important: the server name should not be longer than 13(?) chars, otherwise you 
 
 Example:
 
-```/path/to/wg-container up -m wg-us-01 firefox```
+```/path/to/wg-container up -m wg-us-01```
 
 ```/path/to/wg-container exec -m wg-us-01 firefox```
 
