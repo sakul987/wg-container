@@ -3,22 +3,64 @@ set -e
 
 [[ $UID != 0 ]] && exec sudo -E "$(readlink -f "$0")" "$@"
 
+freeIp() {
+    for i in $(seq 0 255); do
+        if ! grep -q "10.200.$i.0" $vpnIpPairFile; then
+            echo $i
+            return
+        fi
+    done
+    echo "no free ip found!" >&2
+    exit 1
+}
+
+usedIp() {
+    ip=$(grep -m 1 $1 $vpnIpPairFile | awk '{print $3}')
+    if [ -n "$ip" ]; then
+        echo $ip
+    else
+        echo "ip not found for $1" >&2
+        exit 2
+    fi
+}
+
+defaultServer() {
+    server=$(grep -m 1 "vpn" $vpnIpPairFile | awk '{print $2}')
+    if [ -n "$server" ]; then
+        echo $server
+    else
+        echo "server of default vpn netns not found!" >&2
+        exit 3
+    fi
+}
+
 up() {
     if [ -n "$1" ]; then
-        ip netns add vpn
-        ip netns exec vpn ip addr add 127.0.0.1/8 dev lo
-        ip netns exec vpn ip link set lo up
-        ip link add vpndest0 type veth peer name vpnsource0
-        ip link set vpndest0 up
-        ip link set vpnsource0 netns vpn up
-        ip addr add 10.200.200.1/24 dev vpndest0
-        ip netns exec vpn ip addr add 10.200.200.2/24 dev vpnsource0
-        ip netns exec vpn ip route add default via 10.200.200.1 dev vpnsource0
-        iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
-        mkdir -p /etc/netns/vpn
-        sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/vpn/resolv.conf"
-        ip netns exec vpn wg-quick up $1
-        ufw route allow in on vpndest0 out on $interface
+        server="$1"
+        if [[ $isMulti == true ]]; then
+            netnsName=$server
+        else
+            netnsName="vpn"
+        fi
+        mkdir -p $vpnIpPairLocation
+        touch $vpnIpPairFile
+        netnsIp=$(freeIp)
+
+        ip netns add $netnsName
+        ip netns exec $netnsName ip addr add 127.0.0.1/8 dev lo
+        ip netns exec $netnsName ip link set lo up
+        ip link add "${netnsName}d" type veth peer name "${netnsName}s"
+        ip link set "${netnsName}d" up
+        ip link set "${netnsName}s" netns $netnsName up
+        ip addr add "10.200.$netnsIp.1/24" dev "${netnsName}d"
+        ip netns exec $netnsName ip addr add "10.200.$netnsIp.2/24" dev "${netnsName}s"
+        ip netns exec $netnsName ip route add default via "10.200.$netnsIp.1" dev "${netnsName}s"
+        iptables -t nat -A POSTROUTING -s "10.200.$netnsIp.0/24" -o $interface -j MASQUERADE
+        mkdir -p "/etc/netns/$netnsName"
+        sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/$netnsName/resolv.conf"
+        ip netns exec $netnsName wg-quick up $server
+        echo "$netnsName $server 10.200.$netnsIp.0" >> $vpnIpPairFile
+        ufw route allow in on "${netnsName}d" out on $interface
         ufw reload
     else
         echo "Enter wireguard config name"
@@ -26,48 +68,76 @@ up() {
 }
 
 down() {
-    if [ -n "$1" ]; then
-        ufw route delete allow in on vpndest0 out on $interface
-        iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o $interface -j MASQUERADE
-        ip netns exec vpn wg-quick down $1
-        rm -r /etc/netns/vpn
-        ip link delete vpndest0
-        ip netns delete vpn
-        ufw reload
+    if [[ $isMulti == true ]]; then
+        if [ -n "$1" ]; then
+            server="$1"
+        else
+            echo "Enter wireguard config name"
+            exit 4
+        fi
+        netnsName=$server
     else
-        echo "Enter wireguard config name"
+        netnsName="vpn"
+        server=$(defaultServer)
     fi
+    netnsIp=$(usedIp $netnsName)
+
+    ufw route delete allow in on "${netnsName}d" out on $interface
+    iptables -t nat -D POSTROUTING -s "$netnsIp/24" -o $interface -j MASQUERADE
+    ip netns exec $netnsName wg-quick down $server
+    rm -r "/etc/netns/$netnsName"
+    ip link delete "${netnsName}d"
+    ip netns delete $netnsName
+    sed -i "/$netnsName/d" $vpnIpPairFile
+    sed -i "/^$/d" $vpnIpPairFile
+    ufw reload
 }
 
 execi() {
-    exec ip netns exec vpn sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@" &
+    if [[ $isMulti == true ]]; then
+        netnsName="$1"
+        shift
+    else
+        netnsName="vpn"
+    fi
+
+    exec ip netns exec $netnsName sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@" &
     wait $!
 }
 
 direct() {
+    isMulti=true;
     server="$1"
     shift
 
     up "$server"
 
     set +e
-    execi "$@"
+    execi "$server" "$@"
 
     set -e
     down "$server"
 }
 
+showlist() {
+    echo -e "netnsName\tserver\t\tused ip"
+    echo "------------------------------------------"
+    awk '{printf "%-15s %-15s %-1s\n", $1, $2, $3}' $vpnIpPairFile
+}
+
 showhelp() {
     echo "Commands:"
-    echo "  wg-container up <flags> <configName>                 # Start VPN connection to <configName>"
-    echo "  wg-container exec <flags> <command>                  # Execute <command> in the VPN namespace"
-    echo "  wg-container down <flags> <configName>               # Stop VPN connection to <configName>"
-    echo "  wg-container direct <flags> <configName> <command>   # Run <command> in <configName> without starting or stopping it"
-    echo "  wg-container help                                    # Print this help text"
+    echo "  wg-container up <flags> <configName>                # Start VPN connection to <configName>"
+    echo "  wg-container exec <flags> <configName?> <command>   # Execute <command> in the VPN namespace"
+    echo "  wg-container down <flags> <configName?>             # Stop VPN connection to <configName>"
+    echo "  wg-container direct <flags> <configName> <command>  # Run <command> in <configName> without starting or stopping it"
+    echo "  wg-container list                                   # Show currently active vpns"
+    echo "  wg-container help                                   # Print this help text"
     echo "Flags:"
     echo "  -i <interface>  # Set the used network interface. Default is \"enp5s0\""
     echo "  -v              # Enable verbose mode / get more debug info"
     echo "  -h              # Print this help text"
+    echo "  -m              # Use multi mode"
     exit 0
 }
 
@@ -75,12 +145,16 @@ command="$1"
 shift
 
 interface="enp5s0"
+vpnIpPairLocation="/var/lib/wg-container"
+# Structure of vpnIpPairFile: <netnsName> <server> <ip>
+vpnIpPairFile="/var/lib/wg-container/vpnIpPairs"
 
-while getopts "i:vh" flag; do
+while getopts "i:vhm" flag; do
   case $flag in
     i)  interface=$OPTARG ;;
     v)  set -x ;;
     h)  showhelp ;;
+    m)  isMulti=true;;
   esac
 done
 
@@ -91,6 +165,7 @@ case "$command" in
     down) down "$@" ;;
     exec) execi "$@" ;;
     direct) direct "$@" ;;
+    list) showlist ;;
     help)   showhelp ;;
-    *) echo "Usage: $0 up|down|exec|direct" >&2; exit 1 ;;
+    *) echo "Usage: $0 up|down|exec|direct|list|help" >&2; exit 1 ;;
 esac

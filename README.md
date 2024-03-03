@@ -5,9 +5,9 @@ It is heavily inspired by [https://gist.github.com/jamesmcm/f8d6e9f290f7b128e1b5
 
 It is currently designed to use iptables and ufw.
 
-For ufw it uses the interface "enp5s0" by default to allow the namespace to connect to the internet. ~~I might make this changeable over a flag.~~ Use flag -i to specify the interface.
+For ufw it uses the interface "enp5s0" by default to allow the namespace to connect to the internet. Use flag -i to specify the interface.
 
-Also this currently only supports one VPN/namespace, I might add the possibility to create multiple connections / namespaces automatically.
+~~Also this currently only supports one VPN/namespace, I might add the possibility to create multiple connections / namespaces automatically.~~ It is now possible to use multiple connections simultaneously.
 
 The script uses wgquick up & down to connect to the VPN, make sure you have wireguard-tools installed.
 
@@ -19,17 +19,33 @@ To create a VPN namespace with the config file /etc/wireguard/wg-us-01.conf run 
 To create a VPN namespace using interface "eth0" with the config file /etc/wireguard/wg-us-01.conf run ```/path/to/wg-container up -i eth0 wg-us-01```
 
 # Usage: Stop
-To remove the VPN namespace & connection run ```/path/to/wg-container down wg-us-01```
+To remove the VPN namespace & connection run ```/path/to/wg-container down```
 
-To remove the VPN namespace & connection using interface "eth0" run ```/path/to/wg-container down -i eth0 wg-us-01```
+To remove the VPN namespace & connection using interface "eth0" run ```/path/to/wg-container down -i eth0```
+
+When the VPN was started in multimode, run ```/path/to/wg-container down -m wg-us-01```
 
 # Usage: Run Application
 To run a application (e.g. firefox) in the VPN namespace run ```/path/to/wg-container exec firefox```
 
-# New usage: All in one line
+# All in one line
 To create a VPN namespace, run the application inside and afterwards clean up again run ```/path/to/wg-container direct wg-us-01 firefox```
 
 To create a VPN namespace using interface "eth0", run the application inside and afterwards clean up again run ```/path/to/wg-container direct -i eth0 wg-us-01 firefox```
+
+# Multi mode
+If you want to have multiple vpn connections open at the same time, use multi mode by setting the -m flag. When you start a connection with up and set the -m flag, you can execute a command in this connection by using -m <servername>. If you created a "normal" connection without -m, you can also just execute a command without specifying the server like before.
+
+Important: the server name should not be longer than 13(?) chars, otherwise you will get an error.
+
+Example:
+
+```/path/to/wg-container up -m wg-us-01```
+
+```/path/to/wg-container exec -m wg-us-01 firefox```
+
+# List
+It is possible to print out the active VPN connections by running ```/path/to/wg-container list```
 
 # Flags
 -i INTERFACE to set the interface to be used.
@@ -38,4 +54,4 @@ To create a VPN namespace using interface "eth0", run the application inside and
 
 -h To get a help overview.
 
-
+-m Multi mode, specify when executing a command in a connection that was created using -m
