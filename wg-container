@@ -73,6 +73,8 @@ down() {
         rm -r "/etc/netns/$netnsName"
         ip link delete "${netnsName}d"
         ip netns delete $netnsName
+        sed -i "/$netnsName/d" $vpnIpPairFile
+        sed -i "/^$/d" $vpnIpPairFile
         ufw reload
     else
         echo "Enter wireguard config name"
