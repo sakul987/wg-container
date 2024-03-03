@@ -120,13 +120,20 @@ direct() {
     down "$server"
 }
 
+showlist() {
+    echo -e "netnsName\tserver\t\tused ip"
+    echo "------------------------------------------"
+    awk '{printf "%-15s %-15s %-1s\n", $1, $2, $3}' $vpnIpPairFile
+}
+
 showhelp() {
     echo "Commands:"
-    echo "  wg-container up <flags> <configName>                 # Start VPN connection to <configName>"
-    echo "  wg-container exec <flags> <configName?> <command>                  # Execute <command> in the VPN namespace"
-    echo "  wg-container down <flags> <configName?>               # Stop VPN connection to <configName>"
-    echo "  wg-container direct <flags> <configName> <command>   # Run <command> in <configName> without starting or stopping it"
-    echo "  wg-container help                                    # Print this help text"
+    echo "  wg-container up <flags> <configName>                # Start VPN connection to <configName>"
+    echo "  wg-container exec <flags> <configName?> <command>   # Execute <command> in the VPN namespace"
+    echo "  wg-container down <flags> <configName?>             # Stop VPN connection to <configName>"
+    echo "  wg-container direct <flags> <configName> <command>  # Run <command> in <configName> without starting or stopping it"
+    echo "  wg-container list                                   # Show currently active vpns"
+    echo "  wg-container help                                   # Print this help text"
     echo "Flags:"
     echo "  -i <interface>  # Set the used network interface. Default is \"enp5s0\""
     echo "  -v              # Enable verbose mode / get more debug info"
@@ -159,6 +166,7 @@ case "$command" in
     down) down "$@" ;;
     exec) execi "$@" ;;
     direct) direct "$@" ;;
+    list) showlist ;;
     help)   showhelp ;;
     *) echo "Usage: $0 up|down|exec|direct" >&2; exit 1 ;;
 esac
