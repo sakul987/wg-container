@@ -15,12 +15,22 @@ freeIp() {
 }
 
 usedIp() {
-    ip=$(grep -m 1 $1 $vpnIpPairFile | awk '{print $2}')
+    ip=$(grep -m 1 $1 $vpnIpPairFile | awk '{print $3}')
     if [ -n "$ip" ]; then
         echo $ip
     else
-        echo "ip not found for $1"
+        echo "ip not found for $1" >&2
         exit 2
+    fi
+}
+
+defaultServer() {
+    server=$(grep -m 1 "vpn" $vpnIpPairFile | awk '{print $2}')
+    if [ -n "$server" ]; then
+        echo $server
+    else
+        echo "server of default vpn netns not found!" >&2
+        exit 3
     fi
 }
 
@@ -49,7 +59,7 @@ up() {
         mkdir -p "/etc/netns/$netnsName"
         sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/$netnsName/resolv.conf"
         ip netns exec $netnsName wg-quick up $server
-        echo "$netnsName 10.200.$netnsIp.0" >> $vpnIpPairFile
+        echo "$netnsName $server 10.200.$netnsIp.0" >> $vpnIpPairFile
         ufw route allow in on "${netnsName}d" out on $interface
         ufw reload
     else
@@ -127,6 +137,7 @@ shift
 
 interface="enp5s0"
 vpnIpPairLocation="/var/lib/wg-container"
+# Structur of vpnIpPairFile: <netnsName> <server> <ip>
 vpnIpPairFile="/var/lib/wg-container/vpnIpPairs"
 
 while getopts "i:vhm" flag; do
