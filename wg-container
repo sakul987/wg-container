@@ -68,27 +68,29 @@ up() {
 }
 
 down() {
-    if [ -n "$1" ]; then
-        server="$1"
-        if [[ $isMulti == true ]]; then
-            netnsName=$server
+    if [[ $isMulti == true ]]; then
+        if [ -n "$1" ]; then
+            server="$1"
         else
-            netnsName="vpn"
+            echo "Enter wireguard config name"
+            exit 4
         fi
-        netnsIp=$(usedIp $netnsName)
-
-        ufw route delete allow in on "${netnsName}d" out on $interface
-        iptables -t nat -D POSTROUTING -s "$netnsIp/24" -o $interface -j MASQUERADE
-        ip netns exec $netnsName wg-quick down $server
-        rm -r "/etc/netns/$netnsName"
-        ip link delete "${netnsName}d"
-        ip netns delete $netnsName
-        sed -i "/$netnsName/d" $vpnIpPairFile
-        sed -i "/^$/d" $vpnIpPairFile
-        ufw reload
+        netnsName=$server
     else
-        echo "Enter wireguard config name"
+        netnsName="vpn"
+        server=$(defaultServer)
     fi
+    netnsIp=$(usedIp $netnsName)
+
+    ufw route delete allow in on "${netnsName}d" out on $interface
+    iptables -t nat -D POSTROUTING -s "$netnsIp/24" -o $interface -j MASQUERADE
+    ip netns exec $netnsName wg-quick down $server
+    rm -r "/etc/netns/$netnsName"
+    ip link delete "${netnsName}d"
+    ip netns delete $netnsName
+    sed -i "/$netnsName/d" $vpnIpPairFile
+    sed -i "/^$/d" $vpnIpPairFile
+    ufw reload
 }
 
 execi() {
@@ -122,7 +124,7 @@ showhelp() {
     echo "Commands:"
     echo "  wg-container up <flags> <configName>                 # Start VPN connection to <configName>"
     echo "  wg-container exec <flags> <configName?> <command>                  # Execute <command> in the VPN namespace"
-    echo "  wg-container down <flags> <configName>               # Stop VPN connection to <configName>"
+    echo "  wg-container down <flags> <configName?>               # Stop VPN connection to <configName>"
     echo "  wg-container direct <flags> <configName> <command>   # Run <command> in <configName> without starting or stopping it"
     echo "  wg-container help                                    # Print this help text"
     echo "Flags:"
