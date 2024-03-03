@@ -7,7 +7,7 @@ It is currently designed to use iptables and ufw.
 
 For ufw it uses the interface "enp5s0" by default to allow the namespace to connect to the internet. Use flag -i to specify the interface.
 
-Also this currently only supports one VPN/namespace, I might add the possibility to create multiple connections / namespaces automatically.
+~~Also this currently only supports one VPN/namespace, I might add the possibility to create multiple connections / namespaces automatically.~~ It is now possible to use multiple connections simultaneously.
 
 The script uses wgquick up & down to connect to the VPN, make sure you have wireguard-tools installed.
 
