@@ -6,7 +6,7 @@ set -e
 freeIp() {
     for i in $(seq 0 255); do
         if ! grep -q "10.200.$i.0" $vpnIpPairFile; then
-            echo $i
+            echo "$i"
             return
         fi
     done
@@ -15,9 +15,9 @@ freeIp() {
 }
 
 usedIp() {
-    ip=$(grep -m 1 $1 $vpnIpPairFile | awk '{print $3}')
+    ip=$(grep -m 1 "$1" $vpnIpPairFile | awk '{print $3}')
     if [ -n "$ip" ]; then
-        echo $ip
+        echo "$ip"
     else
         echo "ip not found for $1" >&2
         exit 2
@@ -27,7 +27,7 @@ usedIp() {
 defaultServer() {
     server=$(grep -m 1 "vpn" $vpnIpPairFile | awk '{print $2}')
     if [ -n "$server" ]; then
-        echo $server
+        echo "$server"
     else
         echo "server of default vpn netns not found!" >&2
         exit 3
@@ -46,21 +46,21 @@ up() {
         touch $vpnIpPairFile
         netnsIp=$(freeIp)
 
-        ip netns add $netnsName
-        ip netns exec $netnsName ip addr add 127.0.0.1/8 dev lo
-        ip netns exec $netnsName ip link set lo up
+        ip netns add "$netnsName"
+        ip netns exec "$netnsName" ip addr add 127.0.0.1/8 dev lo
+        ip netns exec "$netnsName" ip link set lo up
         ip link add "${netnsName}d" type veth peer name "${netnsName}s"
         ip link set "${netnsName}d" up
-        ip link set "${netnsName}s" netns $netnsName up
+        ip link set "${netnsName}s" netns "$netnsName" up
         ip addr add "10.200.$netnsIp.1/24" dev "${netnsName}d"
-        ip netns exec $netnsName ip addr add "10.200.$netnsIp.2/24" dev "${netnsName}s"
-        ip netns exec $netnsName ip route add default via "10.200.$netnsIp.1" dev "${netnsName}s"
-        iptables -t nat -A POSTROUTING -s "10.200.$netnsIp.0/24" -o $interface -j MASQUERADE
+        ip netns exec "$netnsName" ip addr add "10.200.$netnsIp.2/24" dev "${netnsName}s"
+        ip netns exec "$netnsName" ip route add default via "10.200.$netnsIp.1" dev "${netnsName}s"
+        iptables -t nat -A POSTROUTING -s "10.200.$netnsIp.0/24" -o "$interface" -j MASQUERADE
         mkdir -p "/etc/netns/$netnsName"
         sh -c "echo 'nameserver 9.9.9.9' > /etc/netns/$netnsName/resolv.conf"
-        ip netns exec $netnsName wg-quick up $server
+        ip netns exec "$netnsName" wg-quick up "$server"
         echo "$netnsName $server 10.200.$netnsIp.0" >> $vpnIpPairFile
-        ufw route allow in on "${netnsName}d" out on $interface
+        ufw route allow in on "${netnsName}d" out on "$interface"
         ufw reload
     else
         echo "Enter wireguard config name"
@@ -80,14 +80,14 @@ down() {
         netnsName="vpn"
         server=$(defaultServer)
     fi
-    netnsIp=$(usedIp $netnsName)
+    netnsIp=$(usedIp "$netnsName")
 
-    ufw route delete allow in on "${netnsName}d" out on $interface
-    iptables -t nat -D POSTROUTING -s "$netnsIp/24" -o $interface -j MASQUERADE
-    ip netns exec $netnsName wg-quick down $server
+    ufw route delete allow in on "${netnsName}d" out on "$interface"
+    iptables -t nat -D POSTROUTING -s "$netnsIp/24" -o "$interface" -j MASQUERADE
+    ip netns exec "$netnsName" wg-quick down "$server"
     rm -r "/etc/netns/$netnsName"
     ip link delete "${netnsName}d"
-    ip netns delete $netnsName
+    ip netns delete "$netnsName"
     sed -i "/$netnsName/d" $vpnIpPairFile
     sed -i "/^$/d" $vpnIpPairFile
     ufw reload
@@ -101,7 +101,7 @@ execi() {
         netnsName="vpn"
     fi
 
-    exec ip netns exec $netnsName sudo -E -u \#${SUDO_UID:-$(id -u)} -g \#${SUDO_GID:-$(id -g)} -- "$@" &
+    exec ip netns exec "$netnsName" sudo -E -u \#"${SUDO_UID:-$(id -u)}" -g \#"${SUDO_GID:-$(id -g)}" -- "$@" &
     wait $!
 }
 
@@ -154,7 +154,8 @@ while getopts "i:vhm" flag; do
     i)  interface=$OPTARG ;;
     v)  set -x ;;
     h)  showhelp ;;
-    m)  isMulti=true;;
+    m)  isMulti=true ;;
+    *)  echo "Unknown flag $flag" >&2; exit 5;;
   esac
 done
 
