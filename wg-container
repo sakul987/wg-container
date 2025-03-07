@@ -101,7 +101,7 @@ execi() {
         netnsName="vpn"
     fi
 
-    exec ip netns exec "$netnsName" sudo -E -u \#"${SUDO_UID:-$(id -u)}" -g \#"${SUDO_GID:-$(id -g)}" -- "$@" &
+    exec ip netns exec "$netnsName" runuser -u "$(id -un ${SUDO_UID:-$(id -u)})" -- "$@" &
     wait $!
 }
 
